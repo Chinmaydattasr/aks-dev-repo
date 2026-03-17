@@ -1,1 +1,89 @@
+trigger:
+  branches:
+    include:
+      - main
 
+pool:
+  name: SelfHosted-AKS
+
+variables:
+  acrName: CRDatta
+  imageName: task-dashboard-app
+  tag: $(Build.BuildId)
+  aksRg: DevOps-RG-Datta
+  aksName: aks-demo
+
+stages:
+- stage: Build
+  displayName: Build and Push Image
+  jobs:
+  - job: BuildPush
+    displayName: Build Docker Image and Push to ACR
+    steps:
+    - checkout: self
+
+    - task: AzureCLI@2
+      displayName: Build and Push Docker Image
+      inputs:
+        azureSubscription: sc-azure-aks
+        scriptType: ps
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd task-dashboard-project
+          az acr login --name $(acrName)
+          docker build -t $(acrName).azurecr.io/$(imageName):$(tag) .
+          docker push $(acrName).azurecr.io/$(imageName):$(tag)
+
+- stage: DeployDev
+  displayName: Deploy to Dev
+  dependsOn: Build
+  jobs:
+  - deployment: DeployToDev
+    displayName: Deploy Application to Dev Namespace
+    environment: aks-dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Deploy to AKS Dev
+            inputs:
+              azureSubscription: sc-azure-aks
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                az aks get-credentials --resource-group $(aksRg) --name $(aksName) --overwrite-existing
+                kubectl apply -f task-dashboard-project/k8s/pvc-dev.yaml
+                kubectl apply -f task-dashboard-project/k8s/service.yaml
+                kubectl apply -f task-dashboard-project/k8s/deployment-dev.yaml
+                kubectl apply -f task-dashboard-project/k8s/ingress-dev.yaml
+                kubectl get all -n dev
+
+- stage: DeployProd
+  displayName: Deploy to Prod
+  dependsOn: DeployDev
+  jobs:
+  - deployment: DeployToProd
+    displayName: Deploy Application to Prod Namespace
+    environment: aks-prod
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Deploy to AKS Prod
+            inputs:
+              azureSubscription: sc-azure-aks
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                az aks get-credentials --resource-group $(aksRg) --name $(aksName) --overwrite-existing
+                kubectl apply -f task-dashboard-project/k8s/pvc-prod.yaml
+                kubectl apply -f task-dashboard-project/k8s/service.yaml
+                kubectl apply -f task-dashboard-project/k8s/deployment-prod.yaml
+                kubectl apply -f task-dashboard-project/k8s/ingress-prod.yaml
+                kubectl get all -n prod
