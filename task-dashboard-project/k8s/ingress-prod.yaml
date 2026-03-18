@@ -1,19 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: myapp-ingress-dev
+  name: task-dashboard-ingress
   namespace: prod
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
 spec:
   rules:
-    - host: prod.example.com
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: app-service
+                name: task-dashboard-service
                 port:
                   number: 80
