@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: SelfHosted-AKS
+  name: Default
 
 variables:
   acrName: CRDatta
@@ -26,7 +26,7 @@ stages:
     - task: AzureCLI@2
       displayName: Build and Push Docker Image
       inputs:
-        azureSubscription: sc-azure-aks
+        azureSubscription: Devops-ser-conn
         scriptType: ps
         scriptLocation: inlineScript
         inlineScript: |
@@ -51,7 +51,7 @@ stages:
           - task: AzureCLI@2
             displayName: Deploy to AKS Dev
             inputs:
-              azureSubscription: sc-azure-aks
+              azureSubscription: Devops-ser-conn
               scriptType: ps
               scriptLocation: inlineScript
               inlineScript: |
@@ -78,7 +78,7 @@ stages:
           - task: AzureCLI@2
             displayName: Deploy to AKS Prod
             inputs:
-              azureSubscription: sc-azure-aks
+              azureSubscription: Devops-ser-conn
               scriptType: ps
               scriptLocation: inlineScript
               inlineScript: |
